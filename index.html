@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Ursinho Parkour 3D</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body { margin:0; overflow:hidden; background:#000; }
+#controls {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+button {
+  font-size: 18px;
+  padding: 14px;
+  margin: 4px;
+}
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <div>
+    <button onclick="move('forward')">⬆️</button>
+  </div>
+  <div>
+    <button onclick="move('left')">⬅️</button>
+    <button onclick="jump()">🟢</button>
+    <button onclick="move('right')">➡️</button>
+  </div>
+  <div>
+    <button onclick="move('back')">⬇️</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158/build/three.min.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Luz
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+sun.position.set(5,10,5);
+scene.add(sun);
+
+// Ursinho (simples)
+const bear = new THREE.Group();
+
+const body = new THREE.Mesh(
+  new THREE.BoxGeometry(1,1.2,0.6),
+  new THREE.MeshStandardMaterial({color:0x8b4513})
+);
+body.position.y = 1;
+
+const head = new THREE.Mesh(
+  new THREE.BoxGeometry(0.7,0.7,0.7),
+  new THREE.MeshStandardMaterial({color:0xa0522d})
+);
+head.position.y = 1.9;
+
+bear.add(body);
+bear.add(head);
+scene.add(bear);
+
+bear.position.y = 1;
+
+// Chão
+const ground = new THREE.Mesh(
+  new THREE.BoxGeometry(50,1,50),
+  new THREE.MeshStandardMaterial({color:0x228b22})
+);
+ground.position.y = -0.5;
+scene.add(ground);
+
+// Plataformas
+const platforms = [];
+function platform(x,y,z){
+  const p = new THREE.Mesh(
+    new THREE.BoxGeometry(4,1,4),
+    new THREE.MeshStandardMaterial({color:0x999999})
+  );
+  p.position.set(x,y,z);
+  scene.add(p);
+  platforms.push(p);
+}
+
+platform(5,2,0);
+platform(10,4,2);
+platform(15,6,-2);
+
+// Chegada
+const goal = new THREE.Mesh(
+  new THREE.SphereGeometry(0.6,16,16),
+  new THREE.MeshStandardMaterial({color:0xffff00, emissive:0xffff00})
+);
+goal.position.set(15,7.5,-2);
+scene.add(goal);
+
+// Movimento
+let velY = 0;
+let onGround = false;
+let speed = 0.25;
+const keys = {};
+
+addEventListener("keydown", e => keys[e.key] = true);
+addEventListener("keyup", e => keys[e.key] = false);
+
+function move(dir){
+  if(dir === "forward") bear.position.z -= speed;
+  if(dir === "back") bear.position.z += speed;
+  if(dir === "left") bear.position.x -= speed;
+  if(dir === "right") bear.position.x += speed;
+}
+
+function jump(){
+  if(onGround){
+    velY = 0.45;
+    onGround = false;
+  }
+}
+
+function collide(a,b){
+  return Math.abs(a.position.x - b.position.x) < 2 &&
+         Math.abs(a.position.y - b.position.y) < 1.5 &&
+         Math.abs(a.position.z - b.position.z) < 2;
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+
+  if(keys["w"]) move("forward");
+  if(keys["s"]) move("back");
+  if(keys["a"]) move("left");
+  if(keys["d"]) move("right");
+  if(keys[" "] && onGround) jump();
+
+  velY -= 0.02;
+  bear.position.y += velY;
+  onGround = false;
+
+  if(bear.position.y <= 1){
+    bear.position.y = 1;
+    velY = 0;
+    onGround = true;
+  }
+
+  platforms.forEach(p=>{
+    if(collide(bear,p) && velY <= 0){
+      bear.position.y = p.position.y + 1.2;
+      velY = 0;
+      onGround = true;
+    }
+  });
+
+  if(collide(bear, goal)){
+    alert("⭐ FASE COMPLETA!");
+    location.reload();
+  }
+
+  camera.position.set(
+    bear.position.x,
+    bear.position.y + 4,
+    bear.position.z + 8
+  );
+  camera.lookAt(bear.position);
+
+  renderer.render(scene,camera);
+}
+
+animate();
+</script>
+</body>
+</html>
